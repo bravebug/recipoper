@@ -37,8 +37,10 @@ class DataBase:
         with self.Session.begin() as session:
             recipe = session.query(Recipe).filter(Recipe.id == id_).one()
             recipe.shown += 1
-            max_rating = float(session.query(func.max(Recipe.votes / Recipe.shown + 1)).scalar())
-            rating = int(100 / max_rating * recipe.rating + 0.5)
+            if max_rating := session.query(func.max(Recipe.votes / Recipe.shown)).scalar():
+                rating = int(100 / float(max_rating) * recipe.rating + 0.5)
+            else:
+                rating = 100
             return (
                 recipe.id,
                 recipe.name,
