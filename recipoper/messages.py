@@ -2,7 +2,7 @@ MESSAGES = {
     'about':                                        'о проекте',
     'add':                                          'добавить новый рецепт',
     'add_a_photo?':                                 'Хотите добавить фото?',
-    'adding_a_recipe_is_interrupted':               'Добавление рецепта было прервано',
+    'operation_canceled':                           'Операция отменена',
     'cancel':                                       'Отмена',
     'cancel_icon':                                  '❌',
     'choose_the_difficulty_level_of_the_recipe':    'Выберите уровень сложности для рецепта',

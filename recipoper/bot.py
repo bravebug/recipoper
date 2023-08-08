@@ -86,34 +86,13 @@ async def start(message: types.Message):
         parse_mode="html",
     )
 
+
 @dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, commands='help')
 async def help_cmd(message: types.Message):
     await SupportForm.msg.set()
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, selective=True)
     markup.add(BUTTON_CANCEL_TEXT)
     await message.answer(get_msg("support"), reply_markup=markup)
-
-
-@dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, state=SupportForm.msg)
-async def process_name(message: types.Message, state: FSMContext):
-    parsed_msg = json.loads(str(message))
-    username = message.from_user.username
-    if parsed_msg.get("text"):
-        del parsed_msg["text"]
-    prettyfied_msg = json.dumps(parsed_msg, indent=4)
-    for admin_id in conf.ADMIN_IDS:
-        await bot.send_message(
-            admin_id,
-            get_msg("support_msg").format(text=message.text, user=username, msg=prettyfied_msg),
-            parse_mode="html",
-        )
-    await message.answer(get_msg("thank_for_contacting"), reply_markup=types.ReplyKeyboardRemove())
-    await state.finish()
-
-
-@dp.message_handler(commands=['about'])
-async def about(message: types.Message):
-    await message.answer(get_msg('about_text'))
 
 
 @dp.message_handler(state='*', commands='cancel')
@@ -124,9 +103,31 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         return
     await state.finish()
     await message.answer(
-        get_msg('adding_a_recipe_is_interrupted'),
+        get_msg('operation_canceled'),
         reply_markup=types.ReplyKeyboardRemove()
     )
+
+
+@dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, state=SupportForm.msg)
+async def process_name(message: types.Message, state: FSMContext):
+    parsed_msg = json.loads(str(message))
+    username = message.from_user.username
+    if parsed_msg.get("text"):
+        del parsed_msg["text"]
+    prettified_msg = json.dumps(parsed_msg, indent=4)
+    for admin_id in conf.ADMIN_IDS:
+        await bot.send_message(
+            admin_id,
+            get_msg("support_msg").format(text=message.text, user=username, msg=prettified_msg),
+            parse_mode="html",
+        )
+    await message.answer(get_msg("thank_for_contacting"), reply_markup=types.ReplyKeyboardRemove())
+    await state.finish()
+
+
+@dp.message_handler(commands=['about'])
+async def about(message: types.Message):
+    await message.answer(get_msg('about_text'))
 
 
 @dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, commands='add')
