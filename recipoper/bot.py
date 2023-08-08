@@ -11,7 +11,6 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import BotCommand
-import json
 import re
 
 
@@ -76,6 +75,19 @@ async def start(message: types.Message):
     )
 
 
+@dp.message_handler(state='*', commands='cancel')
+@dp.message_handler(Text(equals=[BUTTON_CANCEL_TEXT, 'cancel', get_msg("cancel")], ignore_case=True), state='*')
+async def cancel_handler(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    await state.finish()
+    await message.answer(
+        get_msg('operation_canceled'),
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+
+
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     kb = types.InlineKeyboardMarkup()
@@ -110,15 +122,10 @@ async def cancel_handler(message: types.Message, state: FSMContext):
 
 @dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, state=SupportForm.msg)
 async def process_name(message: types.Message, state: FSMContext):
-    parsed_msg = json.loads(str(message))
-    username = message.from_user.username
-    if parsed_msg.get("text"):
-        del parsed_msg["text"]
-    prettified_msg = json.dumps(parsed_msg, indent=4)
     for admin_id in conf.ADMIN_IDS:
         await bot.send_message(
             admin_id,
-            get_msg("support_msg").format(text=message.text, user=username, msg=prettified_msg),
+            get_msg("support_msg").format(text=message.text, user=message.from_user.username),
             parse_mode="html",
         )
     await message.answer(get_msg("thank_for_contacting"), reply_markup=types.ReplyKeyboardRemove())
