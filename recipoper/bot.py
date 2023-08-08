@@ -107,6 +107,19 @@ async def help_cmd(message: types.Message):
     await message.answer(get_msg("support"), reply_markup=markup)
 
 
+@dp.message_handler(state='*', commands='cancel')
+@dp.message_handler(Text(equals=[BUTTON_CANCEL_TEXT, 'cancel', get_msg("cancel")], ignore_case=True), state='*')
+async def cancel_handler(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    await state.finish()
+    await message.answer(
+        get_msg('operation_canceled'),
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+
+
 @dp.message_handler(lambda message: message.from_user.id in conf.ADMIN_IDS, state=SupportForm.msg)
 async def process_name(message: types.Message, state: FSMContext):
     for admin_id in conf.ADMIN_IDS:
