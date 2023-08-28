@@ -37,6 +37,7 @@ def get_msg(key: str) -> str:
 
 BUTTON_CANCEL_TEXT = f'{get_msg("cancel_icon")} {get_msg("cancel")}'
 BUTTON_OK_TEXT = f'{get_msg("successful_action_icon")} {get_msg("ok")}'
+BUTTON_RECIPE_DETAILS = f'{get_msg("recipe_details_icon")} {get_msg("recipe_details")}'
 BUTTON_REMOVE_TEXT = f'{get_msg("remove_icon")} {get_msg("remove")}'
 BUTTON_LIKE_TEXT = f'{get_msg("like_icon")} {get_msg("like")}'
 BUTTON_NEXT_TEXT = f'{get_msg("next_recipe_icon")} {get_msg("next_recipe")}'
@@ -256,41 +257,59 @@ async def recipe_cmd(message: types.Message):
         random_recipe_ids[message.chat.id] = list(db.list_recipe_ids())
         random.shuffle(random_recipe_ids[message.chat.id])
     try:
-        (
-            id_,
-            name,
-            ingredients,
-            body,
-            level,
-            time,
-            image,
-            shown,
-            votes,
-            rating,
-        ) = db.get_recipe_by_id(random_recipe_ids[message.chat.id].pop())
+        recipe_id = random_recipe_ids[message.chat.id].pop()
     except IndexError:
         await message.answer(text=get_msg("database_is_empty"))
     else:
-        time_range = f"{int(time * 0.85)}-{int(time * 1.1)} {get_msg('minute')}"
-        recipe = get_msg("recipe_template").format(
-            name=name,
-            ingredients=ingredients,
-            body=body,
-            level=level,
-            time=time_range,
-            votes=votes,
-            rating=rating
+        data = await generate_from_template(recipe_id)
+        if img := data.get("img"):
+            await message.answer_photo(**img)
+        await message.answer(**data.get("msg"))
+
+
+async def generate_from_template(recipe_id: int, details=False):
+    res = dict()
+    (
+        id_,
+        name,
+        ingredients,
+        body,
+        level,
+        time,
+        image,
+        shown,
+        votes,
+        rating,
+    ) = db.get_recipe_by_id(recipe_id)
+    time_range = f"{int(time * 0.85)}-{int(time * 1.1)} {get_msg('minute')}"
+    if details:
+        template = get_msg("recipe_details_template")
+    else:
+        template = get_msg("recipe_template")
+    recipe = template.format(
+        name=name,
+        ingredients=ingredients,
+        body=body,
+        level=level,
+        time=time_range,
+        votes=votes,
+        rating=rating
+    )
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    kb.insert(types.InlineKeyboardButton(text=BUTTON_LIKE_TEXT, callback_data=f"like{id_}"))
+    if not details:
+        kb.insert(types.InlineKeyboardButton(text=BUTTON_RECIPE_DETAILS, callback_data=f"details{id_}"))
+    kb.insert(types.InlineKeyboardButton(text=BUTTON_NEXT_TEXT, callback_data="next"))
+    if image:
+        res["img"] = dict(
+            photo=image,
         )
-        kb = types.InlineKeyboardMarkup(row_width=3)
-        kb.insert(types.InlineKeyboardButton(text=BUTTON_LIKE_TEXT, callback_data=f"like{id_}"))
-        kb.insert(types.InlineKeyboardButton(text=BUTTON_NEXT_TEXT, callback_data="next"))
-        if image:
-            await message.answer_photo(photo=image)
-        await message.answer(
-            text=recipe,
-            reply_markup=kb,
-            parse_mode="html",
-        )
+    res["msg"] = dict(
+        text=recipe,
+        reply_markup=kb,
+        parse_mode="html",
+    )
+    return res
 
 
 @dp.callback_query_handler()
@@ -299,6 +318,10 @@ async def callback_handler(callback: types.CallbackQuery):
     for row in markup.inline_keyboard:
         for button in row:
             if button.callback_data == callback.data:
+                if button.callback_data.startswith("details"):
+                    data = await generate_from_template(int(button.callback_data.lstrip("details")), details=True)
+                    await callback.message.edit_text(text=data.get("msg").get("text"))
+                    # await recipe_cmd(callback.message)
                 if button.callback_data.startswith("like"):
                     db.vote_recipe_by_id(int(button.callback_data.lstrip("like")))
                 if button.callback_data == "next":
